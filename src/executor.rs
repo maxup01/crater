@@ -1,10 +1,10 @@
-use std::ffi::CStr;
+use std::ffi::{CString, CStr};
 use nix::{ 
     sys::wait,
     unistd,
 }; 
 
-pub fn execute(program: &CStr, args: &[&CStr]) {
+pub fn execute(program: &CStr, args: &[CString]) {
     const PROGRAM_NOT_FOUND_CODE: i32 = 127;
 
     match unsafe { unistd::fork() } {
