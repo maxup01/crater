@@ -9,7 +9,7 @@ use std::{
     fs::create_dir_all,
 };
 
-pub fn execute(program: &CStr, args: &[CString]) {
+pub fn execute(image: &str, program: &CStr, args: &[CString]) {
     let flags = CloneFlags::CLONE_NEWUTS
         | CloneFlags::CLONE_NEWPID
         | CloneFlags::CLONE_NEWNS
@@ -33,8 +33,8 @@ pub fn execute(program: &CStr, args: &[CString]) {
             Err(e) => eprintln!("waitpid failed: {e}"),
         },
         Ok(ForkResult::Child) => {
-            let new_root = "/containers/id";
-            let old_root_temp = "/containers/id/oldroot";
+            let new_root = format!("/containers/{}", image);
+            let old_root_temp = format!("{}/oldroot", &new_root);
 
             if let Err(e) = unistd::sethostname("container-host") {
                 eprintln!("failed to set hostname for container: {}", e);
@@ -50,13 +50,13 @@ pub fn execute(program: &CStr, args: &[CString]) {
                 eprintln!("failed to mount root directory: {}", e);
             }
 
-            if let Err(e) = create_dir_all(new_root) {
+            if let Err(e) = create_dir_all(new_root.as_str()) {
                 eprintln!("failed to create new root directory: {}", e);
             }
 
             if let Err(e) = mount::mount(
-                Some(new_root),
-                new_root,
+                Some(new_root.as_str()),
+                new_root.as_str(),
                 None::<&str>,
                 MsFlags::MS_BIND | MsFlags::MS_REC,
                 None::<&str>,
@@ -64,14 +64,14 @@ pub fn execute(program: &CStr, args: &[CString]) {
                 eprintln!("failed to mount root directory: {}", e);
             }
 
-            if let Err(e) = std::fs::create_dir_all(old_root_temp) {
+            if let Err(e) = std::fs::create_dir_all(old_root_temp.as_str()) {
                 eprintln!(
                     "failed to create temporary directory for previous root directory: {}",
                     e
                 );
             }
 
-            if let Err(e) = unistd::pivot_root(new_root, old_root_temp) {
+            if let Err(e) = unistd::pivot_root(new_root.as_str(), old_root_temp.as_str()) {
                 eprintln!("failed to change root directory: {}", e);
             }
 
