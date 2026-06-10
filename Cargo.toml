@@ -5,4 +5,5 @@ edition = "2024"
 
 [dependencies]
 clap = { version = "4.6.0", features = ["derive"] }
-nix = { version = "0.31.0", features = ["process", "sched"] }
+libc = { version = "0.2.0" }
+nix = { version = "0.31.0", features = ["process", "sched", "mount", "fs", "hostname"] }
