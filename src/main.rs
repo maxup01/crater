@@ -1,16 +1,26 @@
 use clap::Parser;
-use crater::Cli;
+use crater::{Cli, Command};
 
 fn main() {
     crater::initialize_cgroup().expect("failed to create cgroup");
 
-    let args = Cli::parse();
+    let cli = Cli::parse();
 
-    crater::detach_process(move || {
-        let args = args;
+    match cli.command {
+        Command::Run { image_path, args } => {
+            crater::detach_process(move || {
+                let image_path = image_path;
+                let args = args;
 
-        crater::execute(args.image_path(), args.program(), args.args())
-    });
+                crater::execute(&image_path, &args[0], &args);
+            });
+        }
+        Command::List { list_images } => {
+            if list_images {
+                crater::list_images();
+            }
+        }
+    }
 
     let _ = crater::cleanup_cgroup();
 }

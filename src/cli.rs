@@ -1,29 +1,24 @@
-use clap::Parser;
-use std::{
-    ffi::{CStr, CString},
-    path::{Path, PathBuf},
-};
+use clap::{Parser, Subcommand};
+use std::{ffi::CString, path::PathBuf};
 
 #[derive(Parser)]
 #[command(name = "crater")]
 pub struct Cli {
-    #[arg(short, required = true)]
-    image_path: PathBuf,
-
-    #[arg(required = true, num_args = 1..)]
-    args: Vec<CString>,
+    #[command(subcommand)]
+    pub command: Command,
 }
 
-impl Cli {
-    pub fn image_path(&self) -> &Path {
-        &self.image_path
-    }
+#[derive(Subcommand)]
+pub enum Command {
+    Run {
+        #[arg(short, required = true)]
+        image_path: PathBuf,
 
-    pub fn program(&self) -> &CStr {
-        &self.args[0]
-    }
-
-    pub fn args(&self) -> &[CString] {
-        &self.args
-    }
+        #[arg(required = true, num_args = 1..)]
+        args: Vec<CString>,
+    },
+    List {
+        #[arg(short = 'i')]
+        list_images: bool,
+    },
 }
