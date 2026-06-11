@@ -7,13 +7,21 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Run { image, args } => {
-            crater::detach_process(move || {
-                let image = image;
-                let args = args;
+        Command::Run {
+            image,
+            detach,
+            args,
+        } => {
+            if detach {
+                crater::detach_process(move || {
+                    let image = image;
+                    let args = args;
 
+                    crater::execute(&image, &args[0], &args);
+                });
+            } else {
                 crater::execute(&image, &args[0], &args);
-            });
+            }
         }
         Command::List { list_images } => {
             if list_images {

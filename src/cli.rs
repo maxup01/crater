@@ -14,6 +14,9 @@ pub enum Command {
         #[arg(short, required = true)]
         image: String,
 
+        #[arg(short)]
+        detach: bool,
+
         #[arg(required = true, num_args = 1..)]
         args: Vec<CString>,
     },

@@ -1,4 +1,7 @@
-use crate::util::{self, IMAGE_STORE_DIRECTORY_PATH};
+use crate::{
+    network::NetworkInterface,
+    util::{self, IMAGE_STORE_DIRECTORY_PATH},
+};
 use nix::{
     mount::{self, MntFlags, MsFlags},
     sched::{self, CloneFlags},
@@ -57,6 +60,11 @@ pub fn execute(image: &str, program: &CStr, args: &[CString]) {
             }
         }
         Ok(ForkResult::Child) => {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+
             let image_path = PathBuf::from(IMAGE_STORE_DIRECTORY_PATH).join(image);
             let old_root_temp = image_path.join("oldroot");
 
@@ -102,6 +110,11 @@ pub fn execute(image: &str, program: &CStr, args: &[CString]) {
             if let Err(e) = mount::umount2("/oldroot", MntFlags::MNT_DETACH) {
                 eprintln!("failed to unmount oldroot directory: {}", e);
             }
+
+            rt.block_on(async {
+                let net = NetworkInterface::new().unwrap();
+                net.set_loopback_up().await.unwrap();
+            });
 
             let _ = unistd::execvp(program, args);
 
