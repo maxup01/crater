@@ -11,6 +11,22 @@ use std::{
     path::Path,
 };
 
+pub fn detach_process<F: FnOnce()>(action: F) {
+    match unsafe { unistd::fork() } {
+        Ok(ForkResult::Parent { .. }) => {}
+        Ok(ForkResult::Child) => {
+            if let Err(e) = unistd::setsid() {
+                eprintln!("process detaching failed: {e}");
+
+                std::process::exit(1);
+            }
+
+            action();
+        }
+        Err(e) => eprintln!("\nError: {}", e),
+    }
+}
+
 pub fn execute(image_path: &Path, program: &CStr, args: &[CString]) {
     let flags = CloneFlags::CLONE_NEWUTS
         | CloneFlags::CLONE_NEWPID

@@ -6,7 +6,11 @@ fn main() {
 
     let args = Cli::parse();
 
-    crater::execute(args.image_path(), args.program(), args.args());
+    crater::detach_process(move || {
+        let args = args;
+
+        crater::execute(args.image_path(), args.program(), args.args())
+    });
 
     let _ = crater::cleanup_cgroup();
 }
