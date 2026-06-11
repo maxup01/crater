@@ -1,3 +1,4 @@
+use crate::cgroup_utils;
 use nix::{
     mount::{self, MntFlags, MsFlags},
     sched::{self, CloneFlags},
@@ -24,15 +25,21 @@ pub fn execute(image_path: &Path, program: &CStr, args: &[CString]) {
     }
 
     match unsafe { unistd::fork() } {
-        Ok(ForkResult::Parent { child, .. }) => match wait::waitpid(child, None) {
-            Ok(WaitStatus::Exited(_, code)) => {
-                if code != 0 {
-                    eprintln!("container exited with code {code}");
-                }
+        Ok(ForkResult::Parent { child, .. }) => {
+            if let Err(e) = cgroup_utils::add_process_to_cgroup(child.as_raw()) {
+                eprintln!("failed to attach child process to cgroup: {e}");
             }
-            Ok(other) => eprintln!("container ended: {other:?}"),
-            Err(e) => eprintln!("waitpid failed: {e}"),
-        },
+
+            match wait::waitpid(child, None) {
+                Ok(WaitStatus::Exited(_, code)) => {
+                    if code != 0 {
+                        eprintln!("container exited with code {code}");
+                    }
+                }
+                Ok(other) => eprintln!("container ended: {other:?}"),
+                Err(e) => eprintln!("waitpid failed: {e}"),
+            }
+        }
         Ok(ForkResult::Child) => {
             let old_root_temp = image_path.join("oldroot");
 
