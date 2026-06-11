@@ -1,4 +1,4 @@
-use crate::util;
+use crate::util::{self, IMAGE_STORE_DIRECTORY_PATH};
 use nix::{
     mount::{self, MntFlags, MsFlags},
     sched::{self, CloneFlags},
@@ -8,7 +8,7 @@ use nix::{
 use std::{
     ffi::{CStr, CString},
     fs,
-    path::Path,
+    path::PathBuf,
 };
 
 pub fn detach_process<F: FnOnce()>(action: F) {
@@ -27,7 +27,7 @@ pub fn detach_process<F: FnOnce()>(action: F) {
     }
 }
 
-pub fn execute(image_path: &Path, program: &CStr, args: &[CString]) {
+pub fn execute(image: &str, program: &CStr, args: &[CString]) {
     let flags = CloneFlags::CLONE_NEWUTS
         | CloneFlags::CLONE_NEWPID
         | CloneFlags::CLONE_NEWNS
@@ -57,6 +57,7 @@ pub fn execute(image_path: &Path, program: &CStr, args: &[CString]) {
             }
         }
         Ok(ForkResult::Child) => {
+            let image_path = PathBuf::from(IMAGE_STORE_DIRECTORY_PATH).join(image);
             let old_root_temp = image_path.join("oldroot");
 
             if let Err(e) = unistd::sethostname("container-host") {
@@ -74,8 +75,8 @@ pub fn execute(image_path: &Path, program: &CStr, args: &[CString]) {
             }
 
             if let Err(e) = mount::mount(
-                Some(image_path),
-                image_path,
+                Some(&image_path),
+                &image_path,
                 None::<&str>,
                 MsFlags::MS_BIND | MsFlags::MS_REC,
                 None::<&str>,
@@ -90,7 +91,7 @@ pub fn execute(image_path: &Path, program: &CStr, args: &[CString]) {
                 );
             }
 
-            if let Err(e) = unistd::pivot_root(image_path, &old_root_temp) {
+            if let Err(e) = unistd::pivot_root(&image_path, &old_root_temp) {
                 eprintln!("failed to change root directory: {}", e);
             }
 

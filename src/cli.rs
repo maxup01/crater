@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use std::{ffi::CString, path::PathBuf};
+use std::ffi::CString;
 
 #[derive(Parser)]
 #[command(name = "crater")]
@@ -12,7 +12,7 @@ pub struct Cli {
 pub enum Command {
     Run {
         #[arg(short, required = true)]
-        image_path: PathBuf,
+        image: String,
 
         #[arg(required = true, num_args = 1..)]
         args: Vec<CString>,
