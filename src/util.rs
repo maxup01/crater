@@ -1,5 +1,13 @@
 use std::{fs, io};
 
+pub const IMAGE_STORE_DIRECTORY_PATH: &str = "/crater/images";
+
+pub fn init() -> Result<(), io::Error> {
+    fs::create_dir_all(IMAGE_STORE_DIRECTORY_PATH)?;
+
+    initialize_cgroup()
+}
+
 pub fn initialize_cgroup() -> Result<(), io::Error> {
     fs::create_dir_all("/sys/fs/cgroup/crater")?;
 
@@ -13,8 +21,4 @@ pub fn initialize_cgroup() -> Result<(), io::Error> {
 
 pub fn add_process_to_cgroup(pid: i32) -> Result<(), io::Error> {
     fs::write("/sys/fs/cgroup/crater/cgroup.procs", pid.to_string())
-}
-
-pub fn cleanup_cgroup() -> Result<(), io::Error> {
-    fs::remove_dir("/sys/fs/cgroup/crater")
 }

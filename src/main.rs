@@ -2,7 +2,7 @@ use clap::Parser;
 use crater::{Cli, Command};
 
 fn main() {
-    crater::initialize_cgroup().expect("failed to create cgroup");
+    crater::init().expect("failed initialize crater");
 
     let cli = Cli::parse();
 
@@ -21,6 +21,4 @@ fn main() {
             }
         }
     }
-
-    let _ = crater::cleanup_cgroup();
 }

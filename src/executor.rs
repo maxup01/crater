@@ -1,4 +1,4 @@
-use crate::cgroup_utils;
+use crate::util;
 use nix::{
     mount::{self, MntFlags, MsFlags},
     sched::{self, CloneFlags},
@@ -42,7 +42,7 @@ pub fn execute(image_path: &Path, program: &CStr, args: &[CString]) {
 
     match unsafe { unistd::fork() } {
         Ok(ForkResult::Parent { child, .. }) => {
-            if let Err(e) = cgroup_utils::add_process_to_cgroup(child.as_raw()) {
+            if let Err(e) = util::add_process_to_cgroup(child.as_raw()) {
                 eprintln!("failed to attach child process to cgroup: {e}");
             }
 
