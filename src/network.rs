@@ -1,28 +1,56 @@
 use error::CraterError;
 use futures::TryStreamExt;
-use rtnetlink::packet_route::link::{LinkFlags, LinkMessage};
+use rtnetlink::{
+    packet_route::link::{LinkAttribute, LinkFlags, LinkMessage},
+    LinkVeth, RouteMessageBuilder,
+};
+use std::{
+    marker::PhantomData,
+    net::{IpAddr, Ipv4Addr},
+};
 
-#[allow(unused)]
-pub struct NetworkInterface {
+pub struct NetworkInterface<S: InterfaceSide> {
     handle: rtnetlink::Handle,
+    _interface_side: PhantomData<S>,
 }
 
-impl NetworkInterface {
-    #[allow(unused)]
+impl<S: InterfaceSide> NetworkInterface<S> {
     pub fn new() -> Result<Self, CraterError> {
         let (connection, handle, _) = rtnetlink::new_connection()?;
         tokio::spawn(connection);
 
-        Ok(Self { handle })
+        Ok(Self {
+            handle,
+            _interface_side: PhantomData,
+        })
     }
 
-    #[allow(unused)]
-    pub async fn set_loopback_up(&self) -> Result<(), CraterError> {
+    pub async fn assign_address(
+        &self,
+        veth_end_name: &str,
+        addr: IpAddr,
+        addr_prefix: u8,
+    ) -> Result<(), CraterError> {
+        let if_idx = self
+            .get_interface_index(veth_end_name)
+            .await?
+            .expect("Interface not found something is wrong in program logic");
+
+        self.handle
+            .address()
+            .add(if_idx, addr, addr_prefix)
+            .execute()
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn set_link_up(&self, name: &str) -> Result<(), CraterError> {
         let mut links = self
             .handle
             .link()
             .get()
-            .match_name("lo".to_string())
+            .match_name(name.to_string())
             .execute();
 
         if let Some(link) = links.try_next().await? {
@@ -36,4 +64,69 @@ impl NetworkInterface {
 
         Ok(())
     }
+
+    async fn get_interface_index(&self, name: &str) -> Result<Option<u32>, CraterError> {
+        let mut links = self
+            .handle
+            .link()
+            .get()
+            .match_name(name.to_string())
+            .execute();
+
+        let if_idx = links.try_next().await?.map(|l| l.header.index);
+
+        Ok(if_idx)
+    }
 }
+
+impl NetworkInterface<ContainerSideInterface> {
+    pub async fn set_loopback_up(&self) -> Result<(), CraterError> {
+        self.set_link_up("lo").await
+    }
+
+    pub async fn add_default_route(&self, addr: Ipv4Addr) -> Result<(), CraterError> {
+        let route_msg = RouteMessageBuilder::<Ipv4Addr>::new().gateway(addr).build();
+
+        self.handle.route().add(route_msg).execute().await?;
+
+        Ok(())
+    }
+}
+
+impl NetworkInterface<HostSideInterface> {
+    pub async fn create_veth_pair(
+        &self,
+        host_end: &str,
+        container_end: &str,
+    ) -> Result<(), CraterError> {
+        let link_req = LinkVeth::new(host_end, container_end).build();
+
+        self.handle.link().add(link_req).execute().await?;
+
+        Ok(())
+    }
+
+    pub async fn move_veth_pair_end(&self, name: &str, pid: u32) -> Result<(), CraterError> {
+        let mut link_msg = LinkMessage::default();
+
+        let if_idx = self
+            .get_interface_index(name)
+            .await?
+            .expect("Interface not found something is wrong in program logic");
+
+        link_msg.header.index = if_idx;
+        link_msg.attributes.push(LinkAttribute::NetNsPid(pid));
+
+        self.handle.link().set(link_msg).execute().await?;
+
+        Ok(())
+    }
+}
+
+pub trait InterfaceSide {}
+
+pub struct HostSideInterface;
+impl InterfaceSide for HostSideInterface {}
+
+pub struct ContainerSideInterface;
+impl InterfaceSide for ContainerSideInterface {}

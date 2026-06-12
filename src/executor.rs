@@ -1,5 +1,5 @@
 use crate::{
-    network::NetworkInterface,
+    network::{ContainerSideInterface, HostSideInterface, NetworkInterface},
     util::{self, IMAGE_STORE_DIRECTORY_PATH},
 };
 use nix::{
@@ -31,11 +31,7 @@ pub fn detach_process<F: FnOnce()>(action: F) {
 }
 
 pub fn execute(image: &str, program: &CStr, args: &[CString]) {
-    let flags = CloneFlags::CLONE_NEWUTS
-        | CloneFlags::CLONE_NEWPID
-        | CloneFlags::CLONE_NEWNS
-        | CloneFlags::CLONE_NEWNET
-        | CloneFlags::CLONE_NEWUSER;
+    let flags = CloneFlags::CLONE_NEWUTS | CloneFlags::CLONE_NEWPID | CloneFlags::CLONE_NEWNS;
 
     if let Err(e) = sched::unshare(flags) {
         eprintln!("unshare failed: {e}");
@@ -43,8 +39,39 @@ pub fn execute(image: &str, program: &CStr, args: &[CString]) {
         return;
     }
 
+    let (p_read, c_write) = unistd::pipe().unwrap();
+    let (c_read, p_write) = unistd::pipe().unwrap();
+
     match unsafe { unistd::fork() } {
         Ok(ForkResult::Parent { child, .. }) => {
+            let mut b = [0u8; 1];
+            let _ = unistd::read(p_read, &mut b);
+
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+
+            rt.block_on(async {
+                let net_if = NetworkInterface::<HostSideInterface>::new().unwrap();
+
+                net_if
+                    .create_veth_pair("veth-host", "veth-container")
+                    .await
+                    .unwrap();
+                net_if
+                    .assign_address("veth-host", "10.0.0.1".parse().unwrap(), 24)
+                    .await
+                    .unwrap();
+                net_if.set_link_up("veth-host").await.unwrap();
+                net_if
+                    .move_veth_pair_end("veth-container", child.as_raw() as u32)
+                    .await
+                    .unwrap();
+            });
+
+            let _ = unistd::write(p_write, &[1u8]);
+
             if let Err(e) = util::add_process_to_cgroup(child.as_raw()) {
                 eprintln!("failed to attach child process to cgroup: {e}");
             }
@@ -60,6 +87,15 @@ pub fn execute(image: &str, program: &CStr, args: &[CString]) {
             }
         }
         Ok(ForkResult::Child) => {
+            if let Err(e) = sched::unshare(CloneFlags::CLONE_NEWNET) {
+                eprintln!("failed to make child's network namespace: {}", e);
+            }
+
+            let _ = unistd::write(c_write, &[1u8]);
+
+            let mut b = [0u8; 1];
+            let _ = unistd::read(c_read, &mut b);
+
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
@@ -112,8 +148,18 @@ pub fn execute(image: &str, program: &CStr, args: &[CString]) {
             }
 
             rt.block_on(async {
-                let net = NetworkInterface::new().unwrap();
-                net.set_loopback_up().await.unwrap();
+                let net_if = NetworkInterface::<ContainerSideInterface>::new().unwrap();
+
+                net_if.set_loopback_up().await.unwrap();
+                net_if
+                    .assign_address("veth-container", "10.0.0.2".parse().unwrap(), 24)
+                    .await
+                    .unwrap();
+                net_if.set_link_up("veth-container").await.unwrap();
+                net_if
+                    .add_default_route("10.0.0.1".parse().unwrap())
+                    .await
+                    .unwrap();
             });
 
             let _ = unistd::execvp(program, args);
