@@ -8,4 +8,7 @@ pub enum CraterError {
 
     #[error("Network error: {0}")]
     Network(#[from] rtnetlink::Error),
+
+    #[error("Serde json error: {0}")]
+    Serde(#[from] serde_json::Error),
 }
