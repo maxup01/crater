@@ -1,6 +1,7 @@
 mod cli;
 mod executor;
 mod listing;
+mod metadata;
 mod network;
 mod util;
 
