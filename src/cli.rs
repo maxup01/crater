@@ -10,15 +10,22 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
-    Run {
+    Create {
         #[arg(short, required = true)]
         image: String,
 
-        #[arg(short)]
-        detach: bool,
+        #[arg(short, required = true)]
+        name: String,
 
         #[arg(required = true, num_args = 1..)]
         args: Vec<CString>,
+    },
+    Run {
+        #[arg(short, required = true)]
+        name: String,
+
+        #[arg(short)]
+        detach: bool,
     },
     List {
         #[arg(short = 'i')]

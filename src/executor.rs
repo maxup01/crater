@@ -1,6 +1,7 @@
 use crate::{
     network::{ContainerSideInterface, HostSideInterface, NetworkInterface},
-    util::{self, IMAGE_STORE_DIRECTORY_PATH},
+    store::StoreContext,
+    util,
 };
 use nix::{
     mount::{self, MntFlags, MsFlags},
@@ -101,7 +102,7 @@ pub fn execute(image: &str, program: &CStr, args: &[CString]) {
                 .build()
                 .unwrap();
 
-            let image_path = PathBuf::from(IMAGE_STORE_DIRECTORY_PATH).join(image);
+            let image_path = PathBuf::from(StoreContext::image_store_dir()).join(image);
             let old_root_temp = image_path.join("oldroot");
 
             if let Err(e) = unistd::sethostname("container-host") {

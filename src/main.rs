@@ -7,12 +7,8 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Run {
-            image,
-            detach,
-            args,
-        } => {
-            if detach {
+        Command::Create { image, name, args } => {
+            if false {
                 crater::detach_process(move || {
                     let image = image;
                     let args = args;
@@ -23,6 +19,7 @@ fn main() {
                 crater::execute(&image, &args[0], &args);
             }
         }
+        Command::Run { name, detach } => {}
         Command::List { list_images } => {
             if list_images {
                 crater::list_images();
