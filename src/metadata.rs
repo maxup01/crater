@@ -1,3 +1,6 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
 pub struct ContainerMetadata {
     name: String,
     state: ContainerState,
@@ -16,6 +19,7 @@ impl ContainerMetadata {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub enum ContainerState {
     Created,
     Running,
