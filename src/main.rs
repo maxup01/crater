@@ -1,5 +1,5 @@
 use clap::Parser;
-use crater::{Cli, Command};
+use crater::{Cli, Command, StoreContext};
 
 fn main() {
     crater::init().expect("failed to initialize crater");
@@ -15,7 +15,7 @@ fn main() {
         }
         Command::List { list_images } => {
             if list_images {
-                crater::list_images();
+                StoreContext::list_images();
             }
         }
     }

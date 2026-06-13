@@ -3,7 +3,7 @@ use error::CraterError;
 use std::{
     fs::{self, OpenOptions},
     io::Write,
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 pub struct StoreContext;
@@ -25,6 +25,46 @@ impl StoreContext {
 
     pub fn container_metadata_store_dir() -> &'static str {
         Self::CONTAINER_METADATA_STORE_PATH
+    }
+
+    pub fn list_images() {
+        match Self::list_entries(StoreContext::image_store_dir()) {
+            Ok(entries) => {
+                for entry in entries {
+                    println!("{}", entry);
+                }
+            }
+            Err(e) => {
+                eprintln!("failed to read directory where images are stored: {e}");
+            }
+        }
+    }
+
+    pub fn list_containers() {
+        match Self::list_entries(Self::container_metadata_store_dir()) {
+            Ok(entries) => {
+                for entry in entries {
+                    println!("{}", entry.strip_suffix(".json").unwrap_or(&entry));
+                }
+            }
+            Err(e) => {
+                eprintln!("failed to read directory where images are stored: {e}");
+            }
+        }
+    }
+
+    fn list_entries<P: AsRef<Path>>(path: P) -> Result<impl Iterator<Item = String>, CraterError> {
+        let entries = fs::read_dir(path)?;
+
+        let entries = entries.into_iter().filter_map(|e| e.ok()).map(|entry| {
+            let path = entry.path();
+
+            path.file_name()
+                .map(|v| v.to_string_lossy().into_owned())
+                .expect("directory for crater images is corrupted")
+        });
+
+        Ok(entries)
     }
 }
 
