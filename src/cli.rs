@@ -40,4 +40,17 @@ pub enum Command {
         #[arg(short = 'c')]
         list_containers: bool,
     },
+
+    #[command(group(
+        ArgGroup::new("target")
+            .required(true)
+            .args(["image", "container"]),
+    ))]
+    Delete {
+        #[arg(short)]
+        image: String,
+
+        #[arg(short)]
+        container: String,
+    },
 }

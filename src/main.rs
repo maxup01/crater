@@ -23,5 +23,6 @@ fn main() {
                 StoreContext::list_containers();
             }
         }
+        _ => {}
     }
 }
