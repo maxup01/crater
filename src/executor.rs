@@ -33,7 +33,7 @@ fn detach_process<F: FnOnce()>(action: F) {
 }
 
 pub fn create_container(name: String, image: String, args: Vec<CString>) {
-    let exists = MetadataStore::container_metadata_exists(name.as_str()).unwrap_or_else(|e| {
+    let exists = StoreContext::container_metadata_exists(name.as_str()).unwrap_or_else(|e| {
         eprintln!("failed to check if container metadata file exists: {}", e);
 
         std::process::exit(1);

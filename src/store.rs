@@ -53,6 +53,18 @@ impl StoreContext {
         }
     }
 
+    pub fn image_exists(name: &str) -> Result<bool, CraterError> {
+        let exists = fs::exists(Self::image_path(name))?;
+
+        Ok(exists)
+    }
+
+    pub fn container_metadata_exists(name: &str) -> Result<bool, CraterError> {
+        let exists = fs::exists(Self::container_metadata_path(name))?;
+
+        Ok(exists)
+    }
+
     fn list_entries<P: AsRef<Path>>(path: P) -> Result<impl Iterator<Item = String>, CraterError> {
         let entries = fs::read_dir(path)?;
 
@@ -66,6 +78,15 @@ impl StoreContext {
 
         Ok(entries)
     }
+
+    fn image_path(name: &str) -> PathBuf {
+        PathBuf::from(StoreContext::image_store_dir()).join(name)
+    }
+
+    fn container_metadata_path(name: &str) -> PathBuf {
+        let filename = format!("{}.json", name);
+        PathBuf::from(StoreContext::container_metadata_store_dir()).join(filename)
+    }
 }
 
 pub struct MetadataStore;
@@ -77,7 +98,7 @@ impl MetadataStore {
     ) -> Result<(), CraterError> {
         let metadata_json = serde_json::to_string::<ContainerMetadata>(&metadata)?;
 
-        let metadata_file_path = Self::container_metadata_path(name);
+        let metadata_file_path = StoreContext::container_metadata_path(name);
 
         let mut file = OpenOptions::new()
             .truncate(true)
@@ -91,7 +112,7 @@ impl MetadataStore {
     }
 
     pub fn pull_container_metadata(name: &str) -> Result<ContainerMetadata, CraterError> {
-        let metadata_file_path = Self::container_metadata_path(name);
+        let metadata_file_path = StoreContext::container_metadata_path(name);
 
         let file_content = fs::read_to_string(&metadata_file_path)?;
 
@@ -100,21 +121,10 @@ impl MetadataStore {
         Ok(container_metadata)
     }
 
-    pub fn container_metadata_exists(name: &str) -> Result<bool, CraterError> {
-        let exists = fs::exists(Self::container_metadata_path(name))?;
-
-        Ok(exists)
-    }
-
     pub fn update_container_state(name: &str, state: ContainerState) -> Result<(), CraterError> {
         let mut container_metadata = Self::pull_container_metadata(name)?;
         container_metadata.state = state;
 
         Self::save_container_metadata(name, container_metadata)
-    }
-
-    fn container_metadata_path(name: &str) -> PathBuf {
-        let filename = format!("{}.json", name);
-        PathBuf::from(StoreContext::container_metadata_store_dir()).join(filename)
     }
 }
