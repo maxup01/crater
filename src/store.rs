@@ -60,6 +60,12 @@ impl MetadataStore {
         Ok(container_metadata)
     }
 
+    pub fn container_metadata_exists(name: &str) -> Result<bool, CraterError> {
+        let exists = fs::exists(Self::container_metadata_path(name))?;
+
+        Ok(exists)
+    }
+
     fn container_metadata_path(name: &str) -> PathBuf {
         let filename = format!("{}.json", name);
         PathBuf::from(StoreContext::container_metadata_store_dir()).join(filename)

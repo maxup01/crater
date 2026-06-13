@@ -1,21 +1,28 @@
 use serde::{Deserialize, Serialize};
+use std::ffi::CString;
 
 #[derive(Serialize, Deserialize)]
 pub struct ContainerMetadata {
-    name: String,
-    state: ContainerState,
+    pub state: ContainerState,
     image: String,
-    args: Vec<String>,
+    args: Vec<CString>,
 }
 
 impl ContainerMetadata {
-    pub fn new(name: &str, image: &str, args: &[String]) -> Self {
+    pub fn new(image: &str, args: &[CString]) -> Self {
         Self {
-            name: name.to_string(),
             state: ContainerState::Created,
             image: image.to_string(),
             args: Vec::from(args),
         }
+    }
+
+    pub fn image(&self) -> &str {
+        self.image.as_str()
+    }
+
+    pub fn args(&self) -> &[CString] {
+        &self.args
     }
 }
 

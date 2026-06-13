@@ -8,18 +8,11 @@ fn main() {
 
     match cli.command {
         Command::Create { image, name, args } => {
-            if false {
-                crater::detach_process(move || {
-                    let image = image;
-                    let args = args;
-
-                    crater::execute(&image, &args[0], &args);
-                });
-            } else {
-                crater::execute(&image, &args[0], &args);
-            }
+            crater::create_container(name, image, args);
         }
-        Command::Run { name, detach } => {}
+        Command::Run { name, detach } => {
+            crater::run_container(name, detach);
+        }
         Command::List { list_images } => {
             if list_images {
                 crater::list_images();

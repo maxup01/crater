@@ -21,7 +21,7 @@ pub enum Command {
         args: Vec<CString>,
     },
     Run {
-        #[arg(short, required = true)]
+        #[arg(required = true)]
         name: String,
 
         #[arg(short)]

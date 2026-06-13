@@ -1,6 +1,7 @@
 use crate::{
+    metadata::{ContainerMetadata, ContainerState},
     network::{ContainerSideInterface, HostSideInterface, NetworkInterface},
-    store::StoreContext,
+    store::{MetadataStore, StoreContext},
     util,
 };
 use nix::{
@@ -15,7 +16,7 @@ use std::{
     path::PathBuf,
 };
 
-pub fn detach_process<F: FnOnce()>(action: F) {
+fn detach_process<F: FnOnce()>(action: F) {
     match unsafe { unistd::fork() } {
         Ok(ForkResult::Parent { .. }) => {}
         Ok(ForkResult::Child) => {
@@ -31,7 +32,57 @@ pub fn detach_process<F: FnOnce()>(action: F) {
     }
 }
 
-pub fn execute(image: &str, program: &CStr, args: &[CString]) {
+pub fn create_container(name: String, image: String, args: Vec<CString>) {
+    let exists = MetadataStore::container_metadata_exists(name.as_str()).unwrap_or_else(|e| {
+        eprintln!("failed to check if container metadata file exists: {}", e);
+
+        std::process::exit(1);
+    });
+
+    if exists {
+        eprintln!("container with name {} already exists", name);
+
+        std::process::exit(1);
+    }
+
+    let container_metadata = ContainerMetadata::new(image.as_str(), &args);
+
+    if let Err(e) = MetadataStore::save_container_metadata(name.as_str(), container_metadata) {
+        eprintln!("failed to create container: {}", e);
+
+        std::process::exit(1);
+    }
+}
+
+pub fn run_container(name: String, detach: bool) {
+    let metadata = MetadataStore::pull_container_metadata(name.as_str()).unwrap_or_else(|e| {
+        eprintln!("failed to retrieve container's metadata: {}", e);
+
+        std::process::exit(1);
+    });
+
+    if matches!(metadata.state, ContainerState::Running) {
+        eprintln!("container is already running");
+
+        std::process::exit(0);
+    }
+
+    if detach {
+        detach_process(move || {
+            let metadata = metadata;
+
+            let args = metadata.args();
+
+            execute(metadata.image(), &args[0], args);
+        });
+    } else {
+        let args = metadata.args();
+
+        execute(metadata.image(), &args[0], args);
+    }
+}
+
+fn execute(image: &str, program: &CStr, args: &[CString]) {
     let flags = CloneFlags::CLONE_NEWUTS | CloneFlags::CLONE_NEWPID | CloneFlags::CLONE_NEWNS;
 
     if let Err(e) = sched::unshare(flags) {
