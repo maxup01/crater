@@ -66,7 +66,7 @@ impl MetadataStore {
         Ok(exists)
     }
 
-    pub fn update_containers_state(name: &str, state: ContainerState) -> Result<(), CraterError> {
+    pub fn update_container_state(name: &str, state: ContainerState) -> Result<(), CraterError> {
         let mut container_metadata = Self::pull_container_metadata(name)?;
         container_metadata.state = state;
 

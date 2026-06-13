@@ -69,20 +69,18 @@ pub fn run_container(name: String, detach: bool) {
 
     if detach {
         detach_process(move || {
-            let metadata = metadata;
-
             let args = metadata.args();
 
-            execute(metadata.image(), &args[0], args);
+            execute(name.as_str(), metadata.image(), &args[0], args);
         });
     } else {
         let args = metadata.args();
 
-        execute(metadata.image(), &args[0], args);
+        execute(name.as_str(), metadata.image(), &args[0], args);
     }
 }
 
-fn execute(image: &str, program: &CStr, args: &[CString]) {
+fn execute(container_name: &str, image: &str, program: &CStr, args: &[CString]) {
     let flags = CloneFlags::CLONE_NEWUTS | CloneFlags::CLONE_NEWPID | CloneFlags::CLONE_NEWNS;
 
     if let Err(e) = sched::unshare(flags) {
@@ -136,7 +134,12 @@ fn execute(image: &str, program: &CStr, args: &[CString]) {
                 }
                 Ok(other) => eprintln!("container ended: {other:?}"),
                 Err(e) => eprintln!("waitpid failed: {e}"),
-            }
+            };
+
+            MetadataStore::update_container_state(container_name, ContainerState::Dead)
+                .unwrap_or_else(|e| {
+                    eprintln!("failed to update container's metadata: {}", e);
+                });
         }
         Ok(ForkResult::Child) => {
             if let Err(e) = sched::unshare(CloneFlags::CLONE_NEWNET) {
@@ -214,7 +217,17 @@ fn execute(image: &str, program: &CStr, args: &[CString]) {
                     .unwrap();
             });
 
+            MetadataStore::update_container_state(container_name, ContainerState::Running)
+                .unwrap_or_else(|e| {
+                    eprintln!("failed to update container's metadata: {}", e);
+                });
+
             let _ = unistd::execvp(program, args);
+
+            MetadataStore::update_container_state(container_name, ContainerState::Dead)
+                .unwrap_or_else(|e| {
+                    eprintln!("failed to update container's metadata: {}", e);
+                });
 
             eprintln!("execvp failed");
             std::process::exit(127);
