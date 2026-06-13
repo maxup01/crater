@@ -48,9 +48,9 @@ pub enum Command {
     ))]
     Delete {
         #[arg(short)]
-        image: String,
+        image: Option<String>,
 
         #[arg(short)]
-        container: String,
+        container: Option<String>,
     },
 }

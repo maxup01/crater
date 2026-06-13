@@ -1,5 +1,5 @@
 use clap::Parser;
-use crater::{Cli, Command, StoreContext};
+use crater::{Cleaner, Cli, Command, StoreContext};
 
 fn main() {
     crater::init().expect("failed to initialize crater");
@@ -23,6 +23,12 @@ fn main() {
                 StoreContext::list_containers();
             }
         }
-        _ => {}
+        Command::Delete { image, container } => {
+            if let Some(image) = image {
+                Cleaner::remove_image(image.as_str());
+            } else if let Some(container) = container {
+                Cleaner::remove_container(container.as_str());
+            }
+        }
     }
 }
