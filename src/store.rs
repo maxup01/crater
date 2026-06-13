@@ -128,3 +128,23 @@ impl MetadataStore {
         Self::save_container_metadata(name, container_metadata)
     }
 }
+
+pub struct Cleaner;
+
+impl Cleaner {
+    pub fn remove_image(name: &str) {
+        let path_to_image = StoreContext::image_path(name);
+
+        if let Err(e) = fs::remove_dir_all(path_to_image) {
+            eprintln!("failed to remove {name} image: {}", e);
+        }
+    }
+
+    pub fn remove_container(name: &str) {
+        let path_to_container_metadata = StoreContext::container_metadata_path(name);
+
+        if let Err(e) = fs::remove_file(path_to_container_metadata) {
+            eprintln!("failed to remove {name} container: {}", e);
+        }
+    }
+}

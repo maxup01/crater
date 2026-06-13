@@ -7,5 +7,5 @@ mod util;
 
 pub use cli::*;
 pub use executor::*;
-pub use store::StoreContext;
+pub use store::{Cleaner, StoreContext};
 pub use util::init;
