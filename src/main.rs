@@ -13,9 +13,14 @@ fn main() {
         Command::Run { name, detach } => {
             crater::run_container(name, detach);
         }
-        Command::List { list_images } => {
+        Command::List {
+            list_images,
+            list_containers,
+        } => {
             if list_images {
                 StoreContext::list_images();
+            } else if list_containers {
+                StoreContext::list_containers();
             }
         }
     }

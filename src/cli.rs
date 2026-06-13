@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{ArgGroup, Parser, Subcommand};
 use std::ffi::CString;
 
 #[derive(Parser)]
@@ -27,8 +27,17 @@ pub enum Command {
         #[arg(short)]
         detach: bool,
     },
+
+    #[command(group(
+        ArgGroup::new("list_kind")
+            .required(true)
+            .args(["list_images", "list_containers"])
+    ))]
     List {
         #[arg(short = 'i')]
         list_images: bool,
+
+        #[arg(short = 'c')]
+        list_containers: bool,
     },
 }
