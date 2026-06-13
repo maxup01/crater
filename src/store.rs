@@ -1,4 +1,4 @@
-use crate::metadata::ContainerMetadata;
+use crate::metadata::{ContainerMetadata, ContainerState};
 use error::CraterError;
 use std::{
     fs::{self, OpenOptions},
@@ -64,6 +64,13 @@ impl MetadataStore {
         let exists = fs::exists(Self::container_metadata_path(name))?;
 
         Ok(exists)
+    }
+
+    pub fn update_containers_state(name: &str, state: ContainerState) -> Result<(), CraterError> {
+        let mut container_metadata = Self::pull_container_metadata(name)?;
+        container_metadata.state = state;
+
+        Self::save_container_metadata(name, container_metadata)
     }
 
     fn container_metadata_path(name: &str) -> PathBuf {
