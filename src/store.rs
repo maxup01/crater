@@ -11,6 +11,7 @@ pub struct StoreContext;
 impl StoreContext {
     const IMAGE_STORE_DIRECTORY_PATH: &str = "/crater/images";
     const CONTAINER_METADATA_STORE_PATH: &str = "/crater/metadata";
+    const CONTAINER_FILESYSTEM_STATE_DIR: &str = "/crater/filesystem-state";
 
     pub fn init() -> Result<(), CraterError> {
         fs::create_dir_all(Self::IMAGE_STORE_DIRECTORY_PATH)?;
@@ -25,6 +26,10 @@ impl StoreContext {
 
     pub fn container_metadata_store_dir() -> &'static str {
         Self::CONTAINER_METADATA_STORE_PATH
+    }
+
+    pub fn container_filesystem_state_dir() -> &'static str {
+        Self::CONTAINER_FILESYSTEM_STATE_DIR
     }
 
     pub fn list_images() {
@@ -63,6 +68,10 @@ impl StoreContext {
         let exists = fs::exists(Self::container_metadata_path(name))?;
 
         Ok(exists)
+    }
+
+    pub fn container_filesystem_state(name: &str) -> PathBuf {
+        PathBuf::from(Self::container_filesystem_state_dir()).join(name)
     }
 
     fn list_entries<P: AsRef<Path>>(path: P) -> Result<impl Iterator<Item = String>, CraterError> {
