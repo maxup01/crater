@@ -71,16 +71,22 @@ impl StoreContext {
         Ok(exists)
     }
 
-    pub fn container_filesystem_state(name: &str) -> PathBuf {
-        PathBuf::from(Self::container_filesystem_dir())
-            .join(name)
-            .join("state")
+    pub fn container_filesystem_state(name: &str) -> String {
+        format!("{}/{}/state", Self::container_filesystem_dir(), name)
     }
 
-    pub fn container_filesystem_overlay(name: &str) -> PathBuf {
-        PathBuf::from(Self::container_filesystem_dir())
-            .join(name)
-            .join("overlay")
+    pub fn container_filesystem_overlay(name: &str) -> String {
+        format!("{}/{}/overlay", Self::container_filesystem_dir(), name)
+    }
+
+    pub fn container_filesystem_merged(name: &str) -> String {
+        format!("{}/{}/merged", Self::container_filesystem_dir(), name)
+    }
+
+    pub fn init_filesystem_store(name: &str) {
+        let _ = fs::create_dir_all(Self::container_filesystem_state(name));
+        let _ = fs::create_dir_all(Self::container_filesystem_overlay(name));
+        let _ = fs::create_dir_all(Self::container_filesystem_merged(name));
     }
 
     fn list_entries<P: AsRef<Path>>(path: P) -> Result<impl Iterator<Item = String>, CraterError> {
@@ -162,6 +168,12 @@ impl Cleaner {
         let path_to_container_metadata = StoreContext::container_metadata_path(name);
 
         if let Err(e) = fs::remove_file(path_to_container_metadata) {
+            eprintln!("failed to remove {name} container: {}", e);
+        }
+
+        if let Err(e) =
+            fs::remove_dir_all(PathBuf::from(StoreContext::container_filesystem_dir()).join(name))
+        {
             eprintln!("failed to remove {name} container: {}", e);
         }
     }

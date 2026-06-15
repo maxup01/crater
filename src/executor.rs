@@ -81,7 +81,7 @@ pub fn run_container(name: String, detach: bool) {
 }
 
 fn execute(container_name: &str, image: &str, program: &CStr, args: &[CString]) {
-    let flags = CloneFlags::CLONE_NEWUTS | CloneFlags::CLONE_NEWPID | CloneFlags::CLONE_NEWNS;
+    let flags = CloneFlags::CLONE_NEWUTS | CloneFlags::CLONE_NEWPID;
 
     if let Err(e) = sched::unshare(flags) {
         eprintln!("unshare failed: {e}");
@@ -142,8 +142,13 @@ fn execute(container_name: &str, image: &str, program: &CStr, args: &[CString]) 
                 });
         }
         Ok(ForkResult::Child) => {
-            if let Err(e) = sched::unshare(CloneFlags::CLONE_NEWNET) {
-                eprintln!("failed to make child's network namespace: {}", e);
+            MetadataStore::update_container_state(container_name, ContainerState::Running)
+                .unwrap_or_else(|e| {
+                    eprintln!("failed to update container's metadata: {}", e);
+                });
+
+            if let Err(e) = sched::unshare(CloneFlags::CLONE_NEWNET | CloneFlags::CLONE_NEWNS) {
+                eprintln!("unshare failed: {e}");
             }
 
             let _ = unistd::write(c_write, &[1u8]);
@@ -157,7 +162,6 @@ fn execute(container_name: &str, image: &str, program: &CStr, args: &[CString]) 
                 .unwrap();
 
             let image_path = PathBuf::from(StoreContext::image_store_dir()).join(image);
-            let old_root_temp = image_path.join("oldroot");
 
             if let Err(e) = unistd::sethostname("container-host") {
                 eprintln!("failed to set hostname for container: {}", e);
@@ -173,12 +177,24 @@ fn execute(container_name: &str, image: &str, program: &CStr, args: &[CString]) 
                 eprintln!("failed to mount root directory: {}", e);
             }
 
+            StoreContext::init_filesystem_store(container_name);
+
+            let merged_dir = StoreContext::container_filesystem_merged(container_name);
+            let old_root_temp = PathBuf::from(&merged_dir).join("oldroot");
+
+            let mount_opts = format!(
+                "lowerdir={},upperdir={},workdir={}",
+                image_path.to_str().unwrap(),
+                StoreContext::container_filesystem_state(container_name),
+                StoreContext::container_filesystem_overlay(container_name),
+            );
+
             if let Err(e) = mount::mount(
-                Some(&image_path),
-                &image_path,
-                None::<&str>,
-                MsFlags::MS_BIND | MsFlags::MS_REC,
-                None::<&str>,
+                Some("overlay"),
+                merged_dir.as_str(),
+                Some("overlay"),
+                MsFlags::empty(),
+                Some(mount_opts.as_str()),
             ) {
                 eprintln!("failed to mount root directory: {}", e);
             }
@@ -190,7 +206,7 @@ fn execute(container_name: &str, image: &str, program: &CStr, args: &[CString]) 
                 );
             }
 
-            if let Err(e) = unistd::pivot_root(&image_path, &old_root_temp) {
+            if let Err(e) = unistd::pivot_root(merged_dir.as_str(), &old_root_temp) {
                 eprintln!("failed to change root directory: {}", e);
             }
 
@@ -217,17 +233,7 @@ fn execute(container_name: &str, image: &str, program: &CStr, args: &[CString]) 
                     .unwrap();
             });
 
-            MetadataStore::update_container_state(container_name, ContainerState::Running)
-                .unwrap_or_else(|e| {
-                    eprintln!("failed to update container's metadata: {}", e);
-                });
-
             let _ = unistd::execvp(program, args);
-
-            MetadataStore::update_container_state(container_name, ContainerState::Dead)
-                .unwrap_or_else(|e| {
-                    eprintln!("failed to update container's metadata: {}", e);
-                });
 
             eprintln!("execvp failed");
             std::process::exit(127);
