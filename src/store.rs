@@ -16,7 +16,7 @@ impl StoreContext {
     pub fn init() -> Result<(), CraterError> {
         fs::create_dir_all(Self::image_store_dir())?;
         fs::create_dir_all(Self::container_metadata_store_dir())?;
-        fs::create_dir_all(Self::container_filesystem_state_dir())?;
+        fs::create_dir_all(Self::container_filesystem_dir())?;
 
         Ok(())
     }
@@ -29,7 +29,7 @@ impl StoreContext {
         Self::CONTAINER_METADATA_STORE_PATH
     }
 
-    pub fn container_filesystem_state_dir() -> &'static str {
+    pub fn container_filesystem_dir() -> &'static str {
         Self::CONTAINER_FILESYSTEM_STATE_DIR
     }
 
@@ -72,7 +72,15 @@ impl StoreContext {
     }
 
     pub fn container_filesystem_state(name: &str) -> PathBuf {
-        PathBuf::from(Self::container_filesystem_state_dir()).join(name)
+        PathBuf::from(Self::container_filesystem_dir())
+            .join(name)
+            .join("state")
+    }
+
+    pub fn container_filesystem_overlay(name: &str) -> PathBuf {
+        PathBuf::from(Self::container_filesystem_dir())
+            .join(name)
+            .join("overlay")
     }
 
     fn list_entries<P: AsRef<Path>>(path: P) -> Result<impl Iterator<Item = String>, CraterError> {
