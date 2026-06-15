@@ -14,8 +14,9 @@ impl StoreContext {
     const CONTAINER_FILESYSTEM_STATE_DIR: &str = "/crater/filesystem-state";
 
     pub fn init() -> Result<(), CraterError> {
-        fs::create_dir_all(Self::IMAGE_STORE_DIRECTORY_PATH)?;
-        fs::create_dir_all(Self::CONTAINER_METADATA_STORE_PATH)?;
+        fs::create_dir_all(Self::image_store_dir())?;
+        fs::create_dir_all(Self::container_metadata_store_dir())?;
+        fs::create_dir_all(Self::container_filesystem_state_dir())?;
 
         Ok(())
     }
