@@ -2,7 +2,7 @@ use error::CraterError;
 use futures::TryStreamExt;
 use rtnetlink::{
     packet_route::link::{LinkAttribute, LinkFlags, LinkMessage},
-    LinkVeth, RouteMessageBuilder,
+    LinkBridge, LinkVeth, RouteMessageBuilder,
 };
 use std::{
     marker::PhantomData,
@@ -13,6 +13,17 @@ pub struct Bridge;
 
 impl Bridge {
     const BRIDGE_NAME: &str = "crater-br";
+
+    pub async fn create() -> Result<(), CraterError> {
+        let (connection, handle, _) = rtnetlink::new_connection()?;
+        tokio::spawn(connection);
+
+        let req = LinkBridge::new(Self::name()).build();
+
+        handle.link().add(req).execute().await?;
+
+        Ok(())
+    }
 
     pub fn name() -> &'static str {
         Self::BRIDGE_NAME
