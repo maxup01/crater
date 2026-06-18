@@ -6,7 +6,7 @@ use rtnetlink::{
 };
 use std::{
     marker::PhantomData,
-    net::{IpAddr, Ipv4Addr},
+    net::{IpAddr, Ipv4Addr} 
 };
 
 pub struct Bridge;
@@ -20,9 +20,16 @@ impl Bridge {
 
         let req = LinkBridge::new(Self::name()).build();
 
-        handle.link().add(req).execute().await?;
-
-        Ok(())
+        match handle.link().add(req).execute().await {
+            Ok(()) => Ok(()), 
+            Err(err) => {
+                if let rtnetlink::Error::NetlinkError(e) = &err && let Some(code) = e.code && code.get() == -17 {
+                    Ok(())
+                } else {
+                    Err(err.into())
+                }
+            },
+        }
     }
 
     pub fn name() -> &'static str {

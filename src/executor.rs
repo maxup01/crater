@@ -1,6 +1,6 @@
 use crate::{
     metadata::{ContainerMetadata, ContainerState},
-    network::{ContainerSideInterface, HostSideInterface, NetworkInterface},
+    network::{Bridge, ContainerSideInterface, HostSideInterface, NetworkInterface},
     store::{MetadataStore, StoreContext},
     util,
 };
@@ -89,6 +89,9 @@ fn execute(container_name: &str, image: &str, program: &CStr, args: &[CString]) 
         return;
     }
 
+    let host_side_veth_name = format!("veth-{}-h", container_name);
+    let container_side_veth_name = format!("veth-{}-c", container_name);
+
     let (p_read, c_write) = unistd::pipe().unwrap();
     let (c_read, p_write) = unistd::pipe().unwrap();
 
@@ -103,21 +106,20 @@ fn execute(container_name: &str, image: &str, program: &CStr, args: &[CString]) 
                 .unwrap();
 
             rt.block_on(async {
+                Bridge::create().await.unwrap();
+
                 let net_if = NetworkInterface::<HostSideInterface>::new().unwrap();
 
                 net_if
-                    .create_veth_pair("veth-host", "veth-container")
+                    .create_veth_pair(&host_side_veth_name, &container_side_veth_name)
                     .await
                     .unwrap();
+                net_if.set_link_up(&host_side_veth_name).await.unwrap();
                 net_if
-                    .assign_address("veth-host", "10.0.0.1".parse().unwrap(), 24)
+                    .move_veth_pair_end(&container_side_veth_name, child.as_raw() as u32)
                     .await
                     .unwrap();
-                net_if.set_link_up("veth-host").await.unwrap();
-                net_if
-                    .move_veth_pair_end("veth-container", child.as_raw() as u32)
-                    .await
-                    .unwrap();
+                net_if.link_to_bridge(&host_side_veth_name).await.unwrap();
             });
 
             let _ = unistd::write(p_write, &[1u8]);
@@ -223,10 +225,10 @@ fn execute(container_name: &str, image: &str, program: &CStr, args: &[CString]) 
 
                 net_if.set_loopback_up().await.unwrap();
                 net_if
-                    .assign_address("veth-container", "10.0.0.2".parse().unwrap(), 24)
+                    .assign_address(&container_side_veth_name, "10.0.0.2".parse().unwrap(), 24)
                     .await
                     .unwrap();
-                net_if.set_link_up("veth-container").await.unwrap();
+                net_if.set_link_up(&container_side_veth_name).await.unwrap();
                 net_if
                     .add_default_route("10.0.0.1".parse().unwrap())
                     .await
