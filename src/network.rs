@@ -9,6 +9,16 @@ use std::{
     net::{IpAddr, Ipv4Addr},
 };
 
+pub struct Bridge;
+
+impl Bridge {
+    const BRIDGE_NAME: &str = "crater-br";
+
+    pub fn name() -> &'static str {
+        Self::BRIDGE_NAME
+    }
+}
+
 pub struct NetworkInterface<S: InterfaceSide> {
     handle: rtnetlink::Handle,
     _interface_side: PhantomData<S>,
