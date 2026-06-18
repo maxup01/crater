@@ -127,6 +127,25 @@ impl NetworkInterface<HostSideInterface> {
         Ok(())
     }
 
+    pub async fn link_to_bridge(&self, host_end: &str) -> Result<(), CraterError> {
+        let bridge_idx = self
+            .get_interface_index(Bridge::name())
+            .await?
+            .expect("Bridge does not exist");
+        let host_side_veth_idx = self
+            .get_interface_index(host_end)
+            .await?
+            .expect("Host side veth with given name doesn't exist");
+
+        let mut msg = LinkMessage::default();
+        msg.header.index = host_side_veth_idx;
+        msg.attributes.push(LinkAttribute::Controller(bridge_idx));
+
+        self.handle.link().set(msg).execute().await?;
+
+        Ok(())
+    }
+
     pub async fn move_veth_pair_end(&self, name: &str, pid: u32) -> Result<(), CraterError> {
         let mut link_msg = LinkMessage::default();
 
