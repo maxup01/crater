@@ -115,20 +115,28 @@ pub fn execute(container_name: &str, image: &str, program: &CStr, args: &[CStrin
                 Err(e) => eprintln!("waitpid failed: {e}"),
             };
 
-            MetadataStore::update_container_state(container_name, ContainerState::Dead)
-                .unwrap_or_else(|e| {
-                    eprintln!("failed to update container's metadata: {}", e);
+            MetadataStore::update_container_state_and_pid(
+                None,
+                container_name,
+                ContainerState::Dead,
+            )
+            .unwrap_or_else(|e| {
+                eprintln!("failed to update container's metadata: {}", e);
 
-                    std::process::exit(1);
-                });
+                std::process::exit(1);
+            });
         }
         Ok(ForkResult::Child) => {
-            MetadataStore::update_container_state(container_name, ContainerState::Running)
-                .unwrap_or_else(|e| {
-                    eprintln!("failed to update container's metadata: {}", e);
+            MetadataStore::update_container_state_and_pid(
+                Some(std::process::id()),
+                container_name,
+                ContainerState::Running,
+            )
+            .unwrap_or_else(|e| {
+                eprintln!("failed to update container's metadata: {}", e);
 
-                    std::process::exit(1);
-                });
+                std::process::exit(1);
+            });
 
             if let Err(e) = sched::unshare(CloneFlags::CLONE_NEWNET | CloneFlags::CLONE_NEWNS) {
                 eprintln!("unshare failed: {e}");

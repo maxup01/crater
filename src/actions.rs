@@ -19,7 +19,7 @@ pub fn create_container(name: String, image: String, args: Vec<CString>) {
         std::process::exit(1);
     }
 
-    let container_metadata = ContainerMetadata::new(image.as_str(), &args);
+    let container_metadata = ContainerMetadata::new(None, image.as_str(), &args);
 
     if let Err(e) = MetadataStore::save_container_metadata(name.as_str(), container_metadata) {
         eprintln!("failed to create container: {}", e);

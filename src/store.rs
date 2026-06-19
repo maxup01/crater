@@ -145,8 +145,14 @@ impl MetadataStore {
         Ok(container_metadata)
     }
 
-    pub fn update_container_state(name: &str, state: ContainerState) -> Result<(), CraterError> {
+    pub fn update_container_state_and_pid(
+        pid: Option<u32>,
+        name: &str,
+        state: ContainerState,
+    ) -> Result<(), CraterError> {
         let mut container_metadata = Self::pull_container_metadata(name)?;
+
+        container_metadata.pid = pid;
         container_metadata.state = state;
 
         Self::save_container_metadata(name, container_metadata)
