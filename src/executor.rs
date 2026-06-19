@@ -42,6 +42,17 @@ pub fn execute(container_name: &str, image: &str, program: &CStr, args: &[CStrin
 
     match unsafe { unistd::fork() } {
         Ok(ForkResult::Parent { child, .. }) => {
+            MetadataStore::update_container_state_and_pid(
+                Some(std::process::id()),
+                container_name,
+                ContainerState::Running,
+            )
+            .unwrap_or_else(|e| {
+                eprintln!("failed to update container's metadata: {}", e);
+
+                std::process::exit(1);
+            });
+
             let mut b = [0u8; 1];
             let _ = unistd::read(p_read, &mut b);
 
@@ -127,17 +138,6 @@ pub fn execute(container_name: &str, image: &str, program: &CStr, args: &[CStrin
             });
         }
         Ok(ForkResult::Child) => {
-            MetadataStore::update_container_state_and_pid(
-                Some(std::process::id()),
-                container_name,
-                ContainerState::Running,
-            )
-            .unwrap_or_else(|e| {
-                eprintln!("failed to update container's metadata: {}", e);
-
-                std::process::exit(1);
-            });
-
             if let Err(e) = sched::unshare(CloneFlags::CLONE_NEWNET | CloneFlags::CLONE_NEWNS) {
                 eprintln!("unshare failed: {e}");
 

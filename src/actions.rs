@@ -3,7 +3,8 @@ use crate::{
     metadata::{ContainerMetadata, ContainerState},
     store::{MetadataStore, StoreContext},
 };
-use nix::unistd::{self, ForkResult};
+use nix::sys::signal::Signal;
+use nix::{unistd::{self, Pid, ForkResult}, sys::signal::kill};
 use std::ffi::CString;
 
 pub fn create_container(name: String, image: String, args: Vec<CString>) {
@@ -51,6 +52,28 @@ pub fn run_container(name: String, detach: bool) {
         let args = metadata.args();
 
         executor::execute(name.as_str(), metadata.image(), &args[0], args);
+    }
+}
+
+pub fn stop_container(name: String) {
+    let metadata = MetadataStore::pull_container_metadata(name.as_str()).unwrap_or_else(|e| {
+        eprintln!("failed to retrieve container's metadata: {}", e);
+
+        std::process::exit(1);
+    });
+
+    if metadata.state == ContainerState::Running && let Some(pid) = metadata.pid {
+        kill(Pid::from_raw(pid as i32), Signal::SIGTERM).unwrap_or_else(|e| {
+            eprintln!("failed to stop container: {}", e);
+
+            std::process::exit(1);
+        });
+
+        MetadataStore::update_container_state_and_pid(None, &name, ContainerState::Dead).unwrap_or_else(|e| {
+            eprintln!("failed to update container's metadata: {}", e);
+
+            std::process::exit(1);
+        });
     }
 }
 

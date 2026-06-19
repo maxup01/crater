@@ -13,6 +13,9 @@ fn main() {
         Command::Run { name, detach } => {
             crater::run_container(name, detach);
         }
+        Command::Stop { container_name } => {
+            crater::stop_container(container_name);
+        }
         Command::List {
             list_images,
             list_containers,
@@ -30,6 +33,5 @@ fn main() {
                 Cleaner::remove_container(container.as_str());
             }
         }
-        _ => {}
     }
 }

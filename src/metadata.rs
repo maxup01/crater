@@ -28,7 +28,7 @@ impl ContainerMetadata {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(PartialEq, Serialize, Deserialize)]
 pub enum ContainerState {
     Created,
     Running,
