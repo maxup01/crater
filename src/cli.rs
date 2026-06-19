@@ -27,6 +27,10 @@ pub enum Command {
         #[arg(short)]
         detach: bool,
     },
+    Stop {
+        #[arg(required = true)]
+        container_name: String,
+    },
 
     #[command(group(
         ArgGroup::new("list_kind")

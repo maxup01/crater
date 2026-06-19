@@ -30,5 +30,6 @@ fn main() {
                 Cleaner::remove_container(container.as_str());
             }
         }
+        _ => {}
     }
 }
